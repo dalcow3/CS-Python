@@ -1,0 +1,178 @@
+#!/usr/bin/python3.4
+
+""" 
+Author: Christopher Bruns
+File Name: isr-final
+Date: Submitted May 2, 2016
+Description: Final project submissing for information storage and retreival computing Bayesian Classifier.
+Program takes in directories that contain files as the parameters when first starting. It creates individual
+dictionaries for each category. The user is then prompted for a file to categorize into one of the categories
+intially submitted. The process of sorting files is repeated until the user hits "Enter" without providing a file
+ending the program. 
+"""
+
+from os import listdir
+from os.path import isfile, join
+from os import walk
+import os
+import sys
+import math
+
+"""Main loop."""
+def main():
+    directoryList = sys.argv
+    if len(directoryList) == 1:
+        print("Error: Please enter at least one directory containing files to categorize")
+        quit()
+    ###List containing name of the category, number of words, and the term dictionary. 
+    print("Creating categories...")
+    del directoryList[0]
+    categoryNameAndList = []
+    totalWordDict = {}
+    for i in directoryList:
+        try:
+            os.chdir(i)
+            names = []
+            catName = str(i)
+            fileNames = []
+            categoryTerms = []
+            count = 0
+            for x in os.listdir(os.getcwd()):
+                if isfile(x):
+                    if x == '.DS_Store':
+                        pass
+                    else:
+                        count += 1
+                        file = str(x)
+                        fileListOfWords = readingFile(file)
+                        for y in fileListOfWords:
+                            categoryTerms.append(y)
+                            if y in totalWordDict:
+                                pass
+                            else:
+                                totalWordDict[y] = 1
+            os.chdir("..")
+            newDict = {}
+            termDict = dictionaryUpdate(newDict, categoryTerms)
+            nameSizeDict = [i, len(categoryTerms), termDict, count]
+            categoryNameAndList.append(nameSizeDict)
+        except:
+            print("The directory " + i + " was not able to be read.")
+            pass
+
+    """Loop to continuously read and categorize files based on the categories entered
+    at the beginning of the program. Sends the file to helper functions to create the
+    list of words, dictionary, and log comparisons with the files in the categories.
+    Prints a statement telling the user where it belongs and prompts the user for a new
+    file to sort. This continues until the user presses enter quiting the program. """
+    fileToSort = input("Enter the file you wish to categorize: ")
+    while fileToSort != "":
+        try:
+            fileToSortList = readingFile(fileToSort)
+            fileToSortDict = {}
+            fileToSortDict = dictionaryUpdate(fileToSortDict, fileToSortList)
+            totalFile = 0
+            for i in categoryNameAndList:
+                totalFile += i[3]
+            resultList = []
+            for i in categoryNameAndList:
+                result = [logCategory(fileToSortDict, totalFile, i[3], len(totalWordDict), i[1], i[2]), i[0]]
+                resultList.append(result)
+            winner = (max(resultList))
+            print("The file " + fileToSort + " belongs in the " + winner[1] + " category.")
+            fileToSort = input("Enter the file you wish to categorize: ")
+        except:
+            print("There was an error reading the file")
+            fileToSort = input("Enter the file you wish to categorize: ")
+
+"""Functino to calculate the log values when determining the category to place the file in.
+Takes in the file's unique dictionary, total count of all the files in the categories, specific
+counts of the category files, total word count in all categories, and specific category dictionaries """
+def logCategory(fileDictionary, fileTotalCount, categoryFileCount, totalWordCount, categoryWordCount, categoryDict):
+    totalLog = 0
+    denominator = categoryWordCount + totalWordCount
+    for i in fileDictionary:
+        if i in categoryDict:
+            totalLog += math.log(categoryDict[i]/denominator) * fileDictionary[i]
+    totalLog += math.log(categoryFileCount/fileTotalCount)
+    return totalLog
+
+"""Parses through the file sent to read taking care of "'" as well while reading the file.
+Sends out a list containing the words from the file. """
+def readingFile(fileName):
+    textFile = open(fileName, 'r')
+    wordList = []
+    for line in textFile:
+        line = line.strip()
+        for word in line.split():
+            word = word.lower()
+            word = word.replace('"', "")
+            word = word.replace(".", "")
+            word = word.replace("?", "")
+            word = word.replace(",", "")
+            if "'" in word:
+                if word[word.index("'")+1:] == 's':
+                    wordList.append(word[:word.index("'")])
+                    wordList.append("is")
+                elif word[word.index("'")+1:] == 'm':
+                    wordList.append("i")
+                    wordList.append("am")
+                elif word[word.index("'")+1:] == 're':
+                    wordList.append(word[:word.index("'")])
+                    wordList.append("are")
+                elif word[word.index("'")+1:] == 've':
+                    wordList.append(word[:word.index("'")])
+                    wordList.append("have")                
+                elif word[word.index("'")+1:] == 'clock':
+                    wordList.append(word[word.index("'")+1:])
+                    wordList.append("of")
+                    wordList.append("the")
+                elif word[word.index("'")+1:] == 'd':
+                    wordList.append("did")
+                    wordList.append(word[word.index("'")+1:])                
+                elif word[word.index("'")+1:] == 'cause':
+                    wordList.append("because")
+                elif word[word.index("'")+1:] == '':
+                    wordList.append(word[:word.index("'")])
+                elif word[word.index("'")+1:] == 'tch':
+                    wordList.append("can")
+                    wordList.append("you")
+                    wordList.append("not")
+                elif word[word.index("'")+1:] == 't':
+                    if word[:word.index("'"):] == 'wouldn':
+                        wordList.append("would")
+                        wordList.append("not")
+                    elif word[:word.index("'"):] == 'ain' or 'isn':
+                        wordList.append("is")
+                        wordList.append("not")
+                    elif word[:word.index("'"):] == 'don':
+                        wordList.append("do")
+                        wordList.append("not")
+                    elif word[:word.index("'"):] == 'can':
+                        wordList.append("can")
+                        wordList.append("not")
+                    else:
+                        wordList.append(word)
+                else:
+                    wordList.append(word)
+            else:
+                wordList.append(word)
+                continue
+
+    textFile.close()
+    return wordList
+
+"""Takes in the list of words in a file and uses that to create a dictionary
+that keeps track of the count of each word as the values attached to the keys.
+Returns the created dictionary"""
+def dictionaryUpdate(dictionary, fileList):
+    for i in fileList:
+        if i in dictionary:
+            dictionary[i] += 1
+        else:
+            dictionary[i] = 1
+    return dictionary
+
+main()   
+
+
